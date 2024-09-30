@@ -747,6 +747,10 @@ uint64_t InputSectionBase::getRelocTargetVA(const InputFile *file, RelType type,
   case R_RELAX_TLS_GD_TO_IE_ABS:
     return sym.getGotVA() + a;
   case R_LOONGARCH_GOT:
+    if (type == R_LARCH_PCALA_LO12)
+      return sym.getVA(a);
+    else if (type == R_LARCH_PCREL20_S2)
+      return sym.getVA(a) - p;
     // The LoongArch TLS GD relocs reuse the R_LARCH_GOT_PC_LO12 reloc type
     // for their page offsets. The arithmetics are different in the TLS case
     // so we have to duplicate some logic here.
@@ -783,6 +787,10 @@ uint64_t InputSectionBase::getRelocTargetVA(const InputFile *file, RelType type,
   case R_GOTPLT_PC:
     return sym.getGotPltVA() + a - p;
   case R_LOONGARCH_GOT_PAGE_PC:
+    if (type == R_LARCH_PCALA_HI20)
+      // Because sym is not preemptible, get symval directly
+      // instead of getting symval via plt
+      return getLoongArchPageDelta(sym.getVA(a), p, type);
     if (sym.hasFlag(NEEDS_TLSGD))
       return getLoongArchPageDelta(ctx.in.got->getGlobalDynAddr(sym) + a, p,
                                    type);

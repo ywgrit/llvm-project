@@ -794,6 +794,11 @@ static bool isPair(ArrayRef<Relocation> relocs, size_t i) {
          relocs[i].offset + 4 == relocs[i + 2].offset;
 }
 
+// Returns true if the symbol's PC-relative address is known at link-time.
+static bool is_pcrel_linktime_const(const Symbol *sym) {
+  return sym->isDefined() && !sym->isPreemptible && !sym->isGnuIFunc();
+}
+
 void LoongArch::relocateAlloc(InputSectionBase &sec, uint8_t *buf) const {
   const unsigned bits = config->is64 ? 64 : 32;
   uint64_t secAddr = sec.getOutputSection()->addr;
@@ -846,6 +851,34 @@ static void relaxPcalaAddi(const InputSection &sec, size_t i, uint64_t loc,
   remove = 4;
 }
 
+// Relax pcalau12i,ld.d => pcalau12i,addi.d
+static void relaxPcalaLd(const InputSection &sec, size_t i, uint64_t loc,
+        Relocation &r_hi, uint32_t &remove) {
+  const uint64_t symval = r_hi.sym->getVA() + r_hi.addend;
+  const int64_t dist = symval - loc;
+  uint32_t pca = read32le(sec.content().data() + r_hi.offset);
+  uint32_t ld = read32le(sec.content().data() + r_hi.offset + 4);
+  uint32_t rd = LARCH_GET_RD(pca);
+
+  if (!LARCH_INSN_LD_D(ld)
+      || LARCH_GET_RD(ld) != rd
+      || LARCH_GET_RJ(ld) != rd)
+      return;
+
+  // pcalau12i,ld.d => pcalau12i,addi.d
+  if (symval & 0x3 || !isInt<22>(dist)) {
+    sec.relaxAux->relocTypes[i] = R_LARCH_PCALA_HI20;
+    sec.relaxAux->relocTypes[i + 2] = INTERNAL_R_LARCH_PCALA_LO12;
+    sec.relaxAux->writes.push_back(LARCH_OP_ADDI_D | (rd << 5) | rd); //addi.d rd, rd, si12
+  } else {
+    // pcalau12i,ld.d => pcaddi, remove the first insn: pcalau12i
+    sec.relaxAux->relocTypes[i] = R_LARCH_RELAX;
+    sec.relaxAux->relocTypes[i + 2] = R_LARCH_PCREL20_S2;
+    sec.relaxAux->writes.push_back(LARCH_OP_PCADDI | rd); // pcaddi
+    remove = 4;
+  }
+}
+
 static bool relax(InputSection &sec) {
   const uint64_t secAddr = sec.getVA();
   const MutableArrayRef<Relocation> relocs = sec.relocs();
@@ -888,6 +921,13 @@ static bool relax(InputSection &sec) {
       if (isPair(relocs, i)
           && relocs[i + 2].type == R_LARCH_PCALA_LO12)
         relaxPcalaAddi(sec, i, loc, r, remove);
+      break;
+    case R_LARCH_GOT_PC_HI20:
+      if (isPair(relocs, i)
+          && relocs[i + 2].type == R_LARCH_GOT_PC_LO12
+          && r.sym == relocs[i + 2].sym
+          && is_pcrel_linktime_const(r.sym))
+        relaxPcalaLd(sec, i, loc, r, remove);
       break;
     }
 
@@ -986,10 +1026,16 @@ void LoongArch::finalizeRelax(int passes) const {
           RelType newType = aux.relocTypes[i];
           switch (newType) {
           case R_LARCH_RELAX:
+          case R_LARCH_PCALA_HI20:
             break;
           case R_LARCH_PCREL20_S2:
             skip = 4;
             write32le(p, aux.writes[writesIdx++]);
+            break;
+          case INTERNAL_R_LARCH_PCALA_LO12:
+            skip = 4;
+            write32le(p, aux.writes[writesIdx++]);
+            aux.relocTypes[i] = R_LARCH_PCALA_LO12;
             break;
           default:
             llvm_unreachable("unsupported type");
