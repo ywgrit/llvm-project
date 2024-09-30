@@ -722,6 +722,14 @@ uint64_t InputSectionBase::getRelocTargetVA(const InputFile *file, RelType type,
                                             const Symbol &sym, RelExpr expr) {
   switch (expr) {
   case R_ABS:
+    // relocation has been relaxed from R_LARCH_PLALA_LO12 to R_LARCH_PCREL20_S2
+    if (type == R_LARCH_PCREL20_S2) {
+      if (sym.hasFlag(NEEDS_PLT))
+        return sym.getPltVA() + a - p;
+      else
+        return sym.getVA(a) - p;
+    }
+    [[fallthrough]];
   case R_DTPREL:
   case R_RELAX_TLS_LD_TO_LE_ABS:
   case R_RELAX_GOT_PC_NOPIC:
