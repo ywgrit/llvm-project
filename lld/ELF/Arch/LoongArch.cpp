@@ -879,6 +879,28 @@ static void relaxPcalaLd(const InputSection &sec, size_t i, uint64_t loc,
   }
 }
 
+// Relax pcaddu18i/jirl to bl or b
+static void relaxCall36(const InputSection &sec, size_t i, uint64_t loc,
+        Relocation &r_hi, uint32_t &remove) {
+  const uint64_t symval =
+      (r_hi.expr == R_PLT_PC ? r_hi.sym->getPltVA() : r_hi.sym->getVA()) + r_hi.addend;
+  const int64_t dist = symval - loc;
+  uint32_t jirl = read32le(sec.content().data() + r_hi.offset + 4);
+  uint32_t rd = LARCH_GET_RD(jirl);
+
+  if (!LARCH_INSN_JIRL(jirl)
+      || (rd != 0 && rd != 1)
+      || dist & 0x3
+      || !isInt<28>(dist))
+      return;
+
+  // remove the first insn: pcaddu18i
+  sec.relaxAux->relocTypes[i] = R_LARCH_B26;
+  // The offsets of R_LARCH_CALL36/R_LARCH_RELAX are same
+  sec.relaxAux->writes.push_back(rd ? LARCH_OP_BL : LARCH_OP_B);
+  remove = 4;
+}
+
 static bool relax(InputSection &sec) {
   const uint64_t secAddr = sec.getVA();
   const MutableArrayRef<Relocation> relocs = sec.relocs();
@@ -921,6 +943,11 @@ static bool relax(InputSection &sec) {
       if (isPair(relocs, i)
           && relocs[i + 2].type == R_LARCH_PCALA_LO12)
         relaxPcalaAddi(sec, i, loc, r, remove);
+      break;
+    case R_LARCH_CALL36:
+      // remove the second insn if we could relax
+      if (relaxable(relocs, i))
+        relaxCall36(sec, i, loc, r, remove);
       break;
     case R_LARCH_GOT_PC_HI20:
       if (isPair(relocs, i)
@@ -1029,6 +1056,7 @@ void LoongArch::finalizeRelax(int passes) const {
           case R_LARCH_PCALA_HI20:
             break;
           case R_LARCH_PCREL20_S2:
+          case R_LARCH_B26:
             skip = 4;
             write32le(p, aux.writes[writesIdx++]);
             break;
