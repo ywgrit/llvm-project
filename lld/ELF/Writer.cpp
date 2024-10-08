@@ -1462,7 +1462,8 @@ template <class ELFT> void Writer<ELFT>::finalizeAddressDependentContent() {
   for (;;) {
     bool changed = ctx.target->needsThunks
                        ? tc.createThunks(pass, ctx.outputSections)
-                       : ctx.target->relaxOnce(pass);
+                       : ctx.arg.emachine == EM_LOONGARCH && !ctx.arg.relax
+                         ? false : ctx.target->relaxOnce(pass);
     bool spilled = ctx.script->spillSections();
     changed |= spilled;
     ++pass;
@@ -1545,7 +1546,8 @@ template <class ELFT> void Writer<ELFT>::finalizeAddressDependentContent() {
       finalizeOrderDependentContent();
     }
   }
-  if (!ctx.arg.relocatable)
+  if (!ctx.arg.relocatable &&
+      !(ctx.arg.emachine == EM_LOONGARCH && !ctx.arg.relax))
     ctx.target->finalizeRelax(pass);
 
   if (ctx.arg.relocatable)
