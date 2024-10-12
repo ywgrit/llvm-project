@@ -378,7 +378,7 @@ void LoongArchMCCodeEmitter::expandAddTPRel(const MCInst &MI,
   MCOperand Rd = MI.getOperand(0);
   MCOperand Rj = MI.getOperand(1);
   MCOperand Rk = MI.getOperand(2);
-  MCOperand Symbol = MI.getOperand(3);
+  MCOperand Symbol = MI.getOperand(3); // Actually TLS_LE_ADD_R(%le_add_r) is not a operand in Instruction
   assert(Symbol.isExpr() &&
          "Expected expression as third input to TP-relative add");
 
@@ -392,6 +392,9 @@ void LoongArchMCCodeEmitter::expandAddTPRel(const MCInst &MI,
   Fixups.push_back(MCFixup::create(
       0, Expr, MCFixupKind(LoongArch::fixup_loongarch_tls_le_add_r),
       MI.getLoc()));
+  /* const MCConstantExpr *Dummy = MCConstantExpr::create(0, Ctx); */
+  /* Fixups.push_back(MCFixup::create( */
+  /*     0, Dummy, MCFixupKind(LoongArch::fixup_loongarch_relax), MI.getLoc())); */
 
   // Emit a normal ADD instruction with the given operands.
   unsigned ADD = MI.getOpcode() == LoongArch::PseudoAddTPRel_D
