@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LoongArch.h"
+#include "../Clang.h"
 #include "ToolChains/CommonArgs.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Driver/Driver.h"
@@ -136,9 +137,14 @@ void loongarch::getLoongArchTargetFeatures(const Driver &D,
 
   if (Args.hasFlag(options::OPT_mrelax, options::OPT_mno_relax, true)) {
     Features.push_back("+relax");
-  } else {
+    // -gsplit-dwarf -mrelax requires DW_AT_high_pc/DW_AT_ranges/... indexing
+    // into .debug_addr, which is currently not implemented.
+    Arg *A;
+    if (getDebugFissionKind(D, Args, A) != DwarfFissionKind::None)
+      D.Diag(clang::diag::err_drv_loongarch_unsupported_with_linker_relaxation)
+          << A->getAsString(Args);
+  } else
     Features.push_back("-relax");
-  }
 
   std::string ArchName;
   if (const Arg *A = Args.getLastArg(options::OPT_march_EQ))

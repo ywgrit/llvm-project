@@ -17,7 +17,7 @@
 
 // LA64: "{{.*}}/Inputs/multilib_loongarch_linux_sdk/lib/gcc/loongarch64-unknown-linux-gnu/12.1.0/../../../../loongarch64-unknown-linux-gnu/bin/ld"
 // LA64-SAME: {{^}} "--sysroot={{.*}}/Inputs/multilib_loongarch_linux_sdk/sysroot"
-// LA64-SAME: "-m" "elf64loongarch"
+// LA64-SAME: "-m" "elf64loongarch" "-X"
 // LA64-SAME: "-dynamic-linker" "/lib64/ld-linux-loongarch-lp64d.so.1"
 // LA64-SAME: "{{.*}}/Inputs/multilib_loongarch_linux_sdk/lib/gcc/loongarch64-unknown-linux-gnu/12.1.0/crtbegin.o"
 // LA64-SAME: "-L{{.*}}/Inputs/multilib_loongarch_linux_sdk/lib/gcc/loongarch64-unknown-linux-gnu/12.1.0"
@@ -25,3 +25,19 @@
 // LA64-SAME: {{^}} "-L{{.*}}/Inputs/multilib_loongarch_linux_sdk/sysroot/usr/lib/../lib64"
 // LA64-SAME: {{^}} "-L{{.*}}/Inputs/multilib_loongarch_linux_sdk/lib/gcc/loongarch64-unknown-linux-gnu/12.1.0/../../../../loongarch64-unknown-linux-gnu/lib"
 // LA64-SAME: {{^}} "-L{{.*}}/Inputs/multilib_loongarch_linux_sdk/sysroot/usr/lib"
+
+// Check that "--no-relax" is forwarded to the linker for LoongArch (Gnu.cpp).
+// RUN: env "PATH=" %clang -### %s -fuse-ld=ld -no-pie -mno-relax \
+// RUN:   --target=loongarch64-unknown-linux-gnu --rtlib=platform --unwindlib=platform -mabi=lp64d \
+// RUN:   --gcc-toolchain=%S/Inputs/multilib_loongarch_linux_sdk \
+// RUN:   --sysroot=%S/Inputs/multilib_loongarch_linux_sdk/sysroot 2>&1 \
+// RUN:   | FileCheck -check-prefix=CHECK-LA64-GNU-NORELAX %s
+// CHECK-LA64-GNU-NORELAX: "--no-relax"
+
+// Check that "--no-relax" is not forwarded to the linker for LoongArch (Gnu.cpp).
+// RUN: env "PATH=" %clang -### %s -fuse-ld=ld -no-pie \
+// RUN:   --target=loongarch64-unknown-linux-gnu --rtlib=platform --unwindlib=platform -mabi=lp64d \
+// RUN:   --gcc-toolchain=%S/Inputs/multilib_loongarch_linux_sdk \
+// RUN:   --sysroot=%S/Inputs/multilib_loongarch_linux_sdk/sysroot 2>&1 \
+// RUN:   | FileCheck -check-prefix=CHECK-LA64-GNU-RELAX %s
+// CHECK-LA64-GNU-RELAX-NOT: "--no-relax"
