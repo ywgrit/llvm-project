@@ -202,18 +202,22 @@ LoongArchMCCodeEmitter::getExprOpValue(const MCInst &MI, const MCOperand &MO,
       break;
     case LoongArchMCExpr::VK_LoongArch_TLS_LE_HI20:
       FixupKind = LoongArch::fixup_loongarch_tls_le_hi20;
+      RelaxCandidate = true;
       break;
     case LoongArchMCExpr::VK_LoongArch_TLS_LE_LO12:
       FixupKind = LoongArch::fixup_loongarch_tls_le_lo12;
+      RelaxCandidate = true;
       break;
     case LoongArchMCExpr::VK_LoongArch_TLS_LE64_LO20:
       FixupKind = LoongArch::fixup_loongarch_tls_le64_lo20;
       break;
     case LoongArchMCExpr::VK_LoongArch_TLS_LE64_HI12:
       FixupKind = LoongArch::fixup_loongarch_tls_le64_hi12;
+      RelaxCandidate = true;
       break;
     case LoongArchMCExpr::VK_LoongArch_TLS_IE_PC_HI20:
       FixupKind = LoongArch::fixup_loongarch_tls_ie_pc_hi20;
+      RelaxCandidate = true;
       break;
     case LoongArchMCExpr::VK_LoongArch_TLS_IE_PC_LO12:
       FixupKind = LoongArch::fixup_loongarch_tls_ie_pc_lo12;
@@ -250,6 +254,7 @@ LoongArchMCCodeEmitter::getExprOpValue(const MCInst &MI, const MCOperand &MO,
       break;
     case LoongArchMCExpr::VK_LoongArch_CALL36:
       FixupKind = LoongArch::fixup_loongarch_call36;
+      RelaxCandidate = true;
       break;
     case LoongArchMCExpr::VK_LoongArch_TLS_DESC_PC_HI20:
       FixupKind = LoongArch::fixup_loongarch_tls_desc_pc_hi20;
@@ -283,9 +288,11 @@ LoongArchMCCodeEmitter::getExprOpValue(const MCInst &MI, const MCOperand &MO,
       break;
     case LoongArchMCExpr::VK_LoongArch_TLS_LE_HI20_R:
       FixupKind = LoongArch::fixup_loongarch_tls_le_hi20_r;
+      RelaxCandidate = true;
       break;
     case LoongArchMCExpr::VK_LoongArch_TLS_LE_LO12_R:
       FixupKind = LoongArch::fixup_loongarch_tls_le_lo12_r;
+      RelaxCandidate = true;
       break;
     case LoongArchMCExpr::VK_LoongArch_PCREL20_S2:
       FixupKind = LoongArch::fixup_loongarch_pcrel20_s2;
@@ -388,10 +395,12 @@ void LoongArchMCCodeEmitter::expandAddTPRel(const MCInst &MI,
          "Expected %le_add_r relocation on TP-relative symbol");
 
   // Emit the correct %le_add_r relocation for the symbol.
-  // TODO: Emit R_LARCH_RELAX for %le_add_r where the relax feature is enabled.
   Fixups.push_back(MCFixup::create(
       0, Expr, MCFixupKind(LoongArch::fixup_loongarch_tls_le_add_r),
       MI.getLoc()));
+  const MCConstantExpr *Dummy = MCConstantExpr::create(0, Ctx);
+  Fixups.push_back(MCFixup::create(
+      0, Dummy, MCFixupKind(LoongArch::fixup_loongarch_relax), MI.getLoc()));
 
   // Emit a normal ADD instruction with the given operands.
   unsigned ADD = MI.getOpcode() == LoongArch::PseudoAddTPRel_D

@@ -1037,7 +1037,7 @@ void LoongArchAsmParser::emitLoadAddressTLSLE(MCInst &Inst, SMLoc IDLoc,
   Insts.push_back(LoongArchAsmParser::Inst(
       LoongArch::ORI, LoongArchMCExpr::VK_LoongArch_TLS_LE_LO12));
 
-  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out);
+  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out, true);
 }
 
 void LoongArchAsmParser::emitLoadAddressTLSIE(MCInst &Inst, SMLoc IDLoc,
@@ -1056,7 +1056,7 @@ void LoongArchAsmParser::emitLoadAddressTLSIE(MCInst &Inst, SMLoc IDLoc,
   Insts.push_back(LoongArchAsmParser::Inst(
       LD, LoongArchMCExpr::VK_LoongArch_TLS_IE_PC_LO12));
 
-  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out);
+  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out, true);
 }
 
 void LoongArchAsmParser::emitLoadAddressTLSIELarge(MCInst &Inst, SMLoc IDLoc,
@@ -1102,7 +1102,7 @@ void LoongArchAsmParser::emitLoadAddressTLSLD(MCInst &Inst, SMLoc IDLoc,
   Insts.push_back(LoongArchAsmParser::Inst(
       ADDI, LoongArchMCExpr::VK_LoongArch_GOT_PC_LO12));
 
-  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out);
+  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out, true);
 }
 
 void LoongArchAsmParser::emitLoadAddressTLSLDLarge(MCInst &Inst, SMLoc IDLoc,
@@ -1148,7 +1148,7 @@ void LoongArchAsmParser::emitLoadAddressTLSGD(MCInst &Inst, SMLoc IDLoc,
   Insts.push_back(LoongArchAsmParser::Inst(
       ADDI, LoongArchMCExpr::VK_LoongArch_GOT_PC_LO12));
 
-  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out);
+  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out, true);
 }
 
 void LoongArchAsmParser::emitLoadAddressTLSGDLarge(MCInst &Inst, SMLoc IDLoc,
@@ -1244,7 +1244,7 @@ void LoongArchAsmParser::emitLoadAddressTLSDescPcrel(MCInst &Inst, SMLoc IDLoc,
   Insts.push_back(LoongArchAsmParser::Inst(
       LoongArch::JIRL, LoongArchMCExpr::VK_LoongArch_TLS_DESC_CALL));
 
-  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out);
+  emitLAInstSeq(DestReg, DestReg, Symbol, Insts, IDLoc, Out, true);
 }
 
 void LoongArchAsmParser::emitLoadAddressTLSDescPcrelLarge(MCInst &Inst,
