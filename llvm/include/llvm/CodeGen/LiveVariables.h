@@ -85,7 +85,7 @@ public:
     /// Kills - List of MachineInstruction's which are the last use of this
     /// virtual register (kill it) in their basic block.
     ///
-    std::vector<MachineInstr*> Kills;
+    std::vector<MachineInstr*> Kills; // why vector rather than a single index: a value maybe killed by multiple instructions belonging to different basic blocks.
 
     /// removeKill - Delete a kill corresponding to the specified
     /// machine instruction. Returns true if there was a kill

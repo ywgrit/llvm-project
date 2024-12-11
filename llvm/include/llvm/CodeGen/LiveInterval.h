@@ -57,7 +57,7 @@ namespace llvm {
     /// The ID number of this value.
     unsigned id;
 
-    /// The index of the defining instruction.
+    /// The index of the defining instruction. The index of the instruction that defines the value number.
     SlotIndex def;
 
     /// VNInfo constructor.
@@ -86,7 +86,7 @@ namespace llvm {
 
   /// Result of a LiveRange query. This class hides the implementation details
   /// of live ranges, and it should be used as the primary interface for
-  /// examining live ranges around instructions.
+  /// examining live ranges around instructions. The live range info around one instruction
   class LiveQueryResult {
     VNInfo *const EarlyVal;
     VNInfo *const LateVal;
@@ -125,7 +125,7 @@ namespace llvm {
     }
 
     /// Returns the value alive at the end of the instruction, if any. This can
-    /// be a live-through value, a live def or a dead def.
+    /// be a live-through value(not defined in this instruction), a live def(defined ans be used) or a dead def(defined but not be used).
     VNInfo *valueOutOrDead() const {
       return LateVal;
     }
@@ -553,12 +553,12 @@ namespace llvm {
       VNInfo *LateVal  = nullptr;
       SlotIndex EndPoint;
       bool Kill = false;
-      if (I->start <= Idx.getBaseIndex()) {
+      if (I->start <= Idx.getBaseIndex()) { // the instruction is in one liverange segment
         EarlyVal = I->valno;
         EndPoint = I->end;
         // Move to the potentially live-out segment.
         if (SlotIndex::isSameInstr(Idx, I->end)) {
-          Kill = true;
+          Kill = true; // the live range ends at the instruction
           if (++I == E)
             return LiveQueryResult(EarlyVal, LateVal, EndPoint, Kill);
         }

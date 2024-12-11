@@ -131,7 +131,7 @@ struct MachineSchedContext {
   const MachineDominatorTree *MDT = nullptr;
   const TargetPassConfig *PassConfig = nullptr;
   AAResults *AA = nullptr;
-  LiveIntervals *LIS = nullptr;
+  LiveIntervals *LIS = nullptr; // All LiveIntervals of a function
 
   RegisterClassInfo *RegClassInfo;
 
@@ -282,10 +282,10 @@ protected:
   /// Ordered list of DAG postprocessing steps.
   std::vector<std::unique_ptr<ScheduleDAGMutation>> Mutations;
 
-  /// The top of the unscheduled zone.
-  MachineBasicBlock::iterator CurrentTop;
+  /// The top of the unscheduled zone. If we schedule top-down, the region from start to CurrentTop is scheduled already.
+  MachineBasicBlock::iterator CurrentTop; // CurrentTop to CurrentBottom is sequentially arrangemented
 
-  /// The bottom of the unscheduled zone.
+  /// The bottom of the unscheduled zone. If we schedule bottom-up, the region from CurrentBottom(included) to end is scheduled already.
   MachineBasicBlock::iterator CurrentBottom;
 
   /// Record the next node in a scheduled cluster.
@@ -406,7 +406,7 @@ protected:
 
   MachineBasicBlock::iterator LiveRegionEnd;
 
-  /// Maps vregs to the SUnits of their uses in the current scheduling region.
+  /// Maps vregs to the SUnits of their uses in the current scheduling region. One reg only ocurrs one time in VRegUses even if one instruction uses the reg multiple times.
   VReg2SUnitMultiMap VRegUses;
 
   // Map each SU to its summary of pressure changes. This array is updated for
@@ -1172,7 +1172,7 @@ protected:
   GenericSchedulerBase(const MachineSchedContext *C) : Context(C) {}
 
   void setPolicy(CandPolicy &Policy, bool IsPostRA, SchedBoundary &CurrZone,
-                 SchedBoundary *OtherZone);
+                 SchedBoundary *OtherZone); // GenericScheduler invokes this function only if pickNodeBidirectional
 
 #ifndef NDEBUG
   void traceCandidate(const SchedCandidate &Cand);

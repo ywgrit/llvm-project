@@ -906,7 +906,7 @@ public:
   /// Get the weight in units of pressure for this register unit.
   virtual unsigned getRegUnitWeight(unsigned RegUnit) const = 0;
 
-  /// Get the number of dimensions of register pressure.
+  /// Get the number of dimensions of register pressure. i.e., the number of register pressure set
   virtual unsigned getNumRegPressureSets() const = 0;
 
   /// Get the name of this register unit pressure set.

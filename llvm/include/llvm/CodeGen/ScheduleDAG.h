@@ -304,7 +304,7 @@ class TargetRegisterInfo;
 
   private:
     bool isDepthCurrent   : 1;         ///< True if Depth is current.
-    bool isHeightCurrent  : 1;         ///< True if Height is current.
+    bool isHeightCurrent  : 1;         ///< True if Height is current. I.e., the height is computed completely
     bool isNode : 1; ///< True if the representative is an SDNode
     bool isInst : 1; ///< True if the representative is a MachineInstr
 

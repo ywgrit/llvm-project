@@ -260,7 +260,7 @@ void SUnit::setHeightToAtLeast(unsigned NewHeight) {
   isHeightCurrent = true;
 }
 
-/// Calculates the maximal path from the node to the exit.
+/// Calculates the maximal path from the node to the exit. Depth-first search
 void SUnit::ComputeDepth() {
   SmallVector<SUnit*, 8> WorkList;
   WorkList.push_back(this);
@@ -291,7 +291,7 @@ void SUnit::ComputeDepth() {
   } while (!WorkList.empty());
 }
 
-/// Calculates the maximal path from the node to the entry.
+/// Calculates the maximal path from the node to the entry. Depth-first search
 void SUnit::ComputeHeight() {
   SmallVector<SUnit*, 8> WorkList;
   WorkList.push_back(this);

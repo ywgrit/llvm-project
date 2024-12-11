@@ -61,7 +61,7 @@ class raw_ostream;
     }
   };
 
-  /// SlotIndex - An opaque wrapper around machine indexes.
+  /// SlotIndex - An opaque wrapper around machine indexes. Used to number instructions
   class SlotIndex {
     friend class SlotIndexes;
 

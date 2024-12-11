@@ -664,14 +664,14 @@ void PressureDiff::addPressureChange(Register RegUnit, bool IsDec,
                                      const MachineRegisterInfo *MRI) {
   PSetIterator PSetI = MRI->getPressureSets(RegUnit);
   int Weight = IsDec ? -PSetI.getWeight() : PSetI.getWeight();
-  for (; PSetI.isValid(); ++PSetI) {
+  for (; PSetI.isValid(); ++PSetI) { // PSetID is in order of increase
     // Find an existing entry in the pressure diff for this PSet.
     PressureDiff::iterator I = nonconst_begin(), E = nonconst_end();
     for (; I != E && I->isValid(); ++I) {
       if (I->getPSet() >= *PSetI)
         break;
     }
-    // If all pressure sets are more constrained, skip the remaining PSets.
+    // If all pressure sets are more constrained, skip the remaining PSets. The capacity is not enough
     if (I == E)
       break;
     // Insert this PressureChange.
@@ -769,8 +769,8 @@ void RegPressureTracker::recede(const RegisterOperands &RegOpers,
     LaneBitmask NewMask = PreviousMask & ~Def.LaneMask;
 
     LaneBitmask LiveOut = Def.LaneMask & ~PreviousMask;
-    if (LiveOut.any()) {
-      discoverLiveOut(RegisterMaskPair(Reg, LiveOut));
+    if (LiveOut.any()) { // def contains some parts which doesn't exist in PreviousMask
+      discoverLiveOut(RegisterMaskPair(Reg, LiveOut)); // TODO(wx): why Def belongs to live out?
       // Retroactively model effects on pressure of the live out lanes.
       increaseSetPressure(CurrSetPressure, *MRI, Reg, LaneBitmask::getNone(),
                           LiveOut);
@@ -947,7 +947,7 @@ void RegPressureTracker::advance() {
   advance(RegOpers);
 }
 
-/// Find the max change in excess pressure across all sets.
+/// Find the max change in excess pressure across all sets. OldPressureVec is the CurrSetPressure before schedule this instruction, NewPressureVec is the CurrSetPressure after schedule this instruction.
 static void computeExcessPressureDelta(ArrayRef<unsigned> OldPressureVec,
                                        ArrayRef<unsigned> NewPressureVec,
                                        RegPressureDelta &Delta,
@@ -1062,8 +1062,8 @@ void RegPressureTracker::bumpUpwardPressure(const MachineInstr *MI) {
     // There may be parts of the register that were dead before the
     // instruction, but became live afterwards. Similarly, some parts
     // may have been killed in this instruction.
-    decreaseRegPressure(Reg, LiveAfter, LiveAfter & LiveBefore);
-    increaseRegPressure(Reg, LiveAfter, ~LiveAfter & LiveBefore);
+    decreaseRegPressure(Reg, LiveAfter, LiveAfter & LiveBefore); // we need decrease the reg pressure sets only if LiveAfter.any && (LiveBefore.none or (LiveBefore & LiveAfter).none)
+    increaseRegPressure(Reg, LiveAfter, ~LiveAfter & LiveBefore); // some parts of the register are used in this instruction
   }
   // Generate liveness for uses.
   for (const RegisterMaskPair &P : RegOpers.Uses) {
@@ -1072,9 +1072,9 @@ void RegPressureTracker::bumpUpwardPressure(const MachineInstr *MI) {
     // with defs.
     if (getRegLanes(RegOpers.Defs, Reg).any())
       continue;
-    LaneBitmask LiveAfter = LiveRegs.contains(Reg);
-    LaneBitmask LiveBefore = LiveAfter | P.LaneMask;
-    increaseRegPressure(Reg, LiveAfter, LiveBefore);
+    LaneBitmask LiveAfter = LiveRegs.contains(Reg); // liveregs after schedule this instruction bottom-up
+    LaneBitmask LiveBefore = LiveAfter | P.LaneMask;// liveregs before schedule this instruction bottom-up
+    increaseRegPressure(Reg, LiveAfter, LiveBefore); // we need increase the reg pressure sets only if LiveBefore.any and LiveAfter.none
   }
 }
 
@@ -1102,7 +1102,7 @@ getMaxUpwardPressureDelta(const MachineInstr *MI, PressureDiff *PDiff,
   std::vector<unsigned> SavedPressure = CurrSetPressure;
   std::vector<unsigned> SavedMaxPressure = P.MaxSetPressure;
 
-  bumpUpwardPressure(MI);
+  bumpUpwardPressure(MI); // compute CurrSetPressure and P.MaxSetPressure
 
   computeExcessPressureDelta(SavedPressure, CurrSetPressure, Delta, RCI,
                              LiveThruPressure);
@@ -1111,7 +1111,7 @@ getMaxUpwardPressureDelta(const MachineInstr *MI, PressureDiff *PDiff,
   assert(Delta.CriticalMax.getUnitInc() >= 0 &&
          Delta.CurrentMax.getUnitInc() >= 0 && "cannot decrease max pressure");
 
-  // Restore the tracker's state.
+  // Restore the tracker's state. NOTE: we just init this instruction as a candidate, but this candidate may not be scheduled now, so we need keep the reg pressures, we actually change the reg pressures only after we scheduled one instruction.
   P.MaxSetPressure.swap(SavedMaxPressure);
   CurrSetPressure.swap(SavedPressure);
 
@@ -1155,12 +1155,12 @@ getMaxUpwardPressureDelta(const MachineInstr *MI, PressureDiff *PDiff,
 /// @param Delta captures information needed for heuristics.
 ///
 /// @param CriticalPSets Are the pressure sets that are known to exceed some
-/// limit within the region, not necessarily at the current position.
+/// limit(each PSet has defined a limit) within the region(this is known when buildDAGgraph), not necessarily at the current position.
 ///
 /// @param MaxPressureLimit Is the max pressure within the region, not
 /// necessarily at the current position.
 void RegPressureTracker::
-getUpwardPressureDelta(const MachineInstr *MI, /*const*/ PressureDiff &PDiff,
+getUpwardPressureDelta(const MachineInstr *MI, /*const*/ PressureDiff &PDiff/* the pressure change of all register pressure sets, all PDiffs are set when buildDAGgraph */,
                        RegPressureDelta &Delta,
                        ArrayRef<PressureChange> CriticalPSets,
                        ArrayRef<unsigned> MaxPressureLimit) const {

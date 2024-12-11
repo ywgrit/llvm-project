@@ -45,7 +45,7 @@ struct RegisterMaskPair {
 
 /// Base class for register pressure results.
 struct RegisterPressure {
-  /// Map of max reg pressure indexed by pressure set ID, not class ID.
+  /// Map of max reg pressure indexed by pressure set ID, not class ID. The size is the number of register pressure set
   std::vector<unsigned> MaxSetPressure;
 
   /// List of live in virtual registers or physical register units.
@@ -133,7 +133,7 @@ public:
 };
 
 /// List of PressureChanges in order of increasing, unique PSetID.
-///
+/// Record PressureChange of each register pressure set for one SUnit.
 /// Use a small fixed number, because we can fit more PressureChanges in an
 /// empty SmallVector than ever need to be tracked per register class. If more
 /// PSets are affected, then we only track the most constrained.
@@ -143,7 +143,7 @@ class PressureDiff {
   // the register classes actually in use within the scheduling region.)
   enum { MaxPSets = 16 };
 
-  PressureChange PressureChanges[MaxPSets];
+  PressureChange PressureChanges[MaxPSets]; // the capacity maybe not enough for all register pressure sets
 
   using iterator = PressureChange *;
 
@@ -238,9 +238,9 @@ public:
 /// CurrentMax records the largest increase in the tracker's max pressure that
 /// exceeds the current limit for some pressure set determined by the client.
 struct RegPressureDelta {
-  PressureChange Excess;
-  PressureChange CriticalMax;
-  PressureChange CurrentMax;
+  PressureChange Excess; // the first increase(pressure - limit) of all reg pressure sets which makes the corresponding reg pressure exceeds the limit
+  PressureChange CriticalMax; // the first increase(pressurenew - CriticalPSets[idx]) of all reg pressure sets which makes the corresponding max reg pressure exceeds the CriticalPSets[idx]
+  PressureChange CurrentMax; // the first increase(pressurenew - pressureold) of all reg pressure sets which make the corresponding max reg pressure exceeds the MaxSetPressure[idx]
 
   RegPressureDelta() = default;
 
@@ -381,7 +381,7 @@ class RegPressureTracker {
 
   /// Register pressure corresponds to liveness before this instruction
   /// iterator. It may point to the end of the block or a DebugValue rather than
-  /// an instruction.
+  /// an instruction. RegPressureTracker tracks register pressure when scheduling each MachineInstr
   MachineBasicBlock::const_iterator CurrPos;
 
   /// Pressure map indexed by pressure set ID, not class ID.

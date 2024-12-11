@@ -1100,6 +1100,7 @@ public:
     Insts.clear();
   }
 
+  BB->splice(CurrentBottom, BB, MI);
   /// Take an instruction from MBB 'Other' at the position From, and insert it
   /// into this MBB right before 'Where'.
   ///

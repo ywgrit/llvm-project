@@ -69,7 +69,7 @@ void TargetSchedModel::init(const TargetSubtargetInfo *TSInfo) {
   }
 }
 
-/// Returns true only if instruction is specified as single issue.
+/// Returns true only if instruction is specified as single issue. single issue is an alias of mustBeginGroup/mustEndGroup
 bool TargetSchedModel::mustBeginGroup(const MachineInstr *MI,
                                      const MCSchedClassDesc *SC) const {
   if (hasInstrSchedModel()) {

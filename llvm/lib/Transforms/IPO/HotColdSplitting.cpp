@@ -243,7 +243,7 @@ bool HotColdSplitting::isBasicBlockCold(
 
     // A statically cold BB would be known before it is visited
     // because the prof-data of incoming edges are 'analyzed' as part of RPOT.
-    if (AnnotatedColdBlocks.count(BB))
+    if (AnnotatedColdBlocks.count(BB)) // the cold successors of BB may contains itself.
       return true;
   }
 
@@ -281,7 +281,7 @@ bool HotColdSplitting::shouldOutlineFrom(const Function &F) const {
   return true;
 }
 
-/// Get the benefit score of outlining \p Region.
+/// Get the benefit score of outlining \p Region. The benefit is the reduce of code size
 static InstructionCost getOutliningBenefit(ArrayRef<BasicBlock *> Region,
                                            TargetTransformInfo &TTI) {
   // Sum up the code size costs of non-terminator instructions. Tight coupling
@@ -700,7 +700,7 @@ bool HotColdSplitting::outlineColdRegions(Function &F, bool HasProfileSummary) {
       PDT = std::make_unique<PostDominatorTree>(F);
 
     auto Regions = OutliningRegion::create(*BB, *DT, *PDT);
-    for (OutliningRegion &Region : Regions) {
+    for (OutliningRegion &Region : Regions) { // Regions contains one or two regions
       if (Region.empty())
         continue;
 
@@ -709,7 +709,7 @@ bool HotColdSplitting::outlineColdRegions(Function &F, bool HasProfileSummary) {
         return markFunctionCold(F);
       }
 
-      do {
+      do { // each subregion of maximal region of SinkBB can be separated to multiple subsubregions if there are multiple SuggestedEntryPoints in subregion
         BlockSequence SubRegion = Region.takeSingleEntrySubRegion(*DT);
         LLVM_DEBUG({
           dbgs() << "Hot/cold splitting attempting to outline these blocks:\n";

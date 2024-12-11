@@ -876,14 +876,14 @@ void ScheduleDAGMI::schedule() {
     } else {
       assert(SU->isBottomReady() && "node still has unscheduled dependencies");
       MachineBasicBlock::iterator priorII =
-        priorNonDebug(CurrentBottom, CurrentTop);
+        priorNonDebug(CurrentBottom, CurrentTop); // CurrentTop to CurrentBottom is sequentially arrangemented
       if (&*priorII == MI)
         CurrentBottom = priorII;
       else {
         if (&*CurrentTop == MI)
           CurrentTop = nextIfDebug(++CurrentTop, priorII);
-        moveInstruction(MI, CurrentBottom);
-        CurrentBottom = MI;
+        moveInstruction(MI, CurrentBottom); // Insert instruction at MI into right before CurrentBottom
+        CurrentBottom = MI; // --CurrentBottom
       }
     }
     // Notify the scheduling strategy before updating the DAG.
@@ -1271,7 +1271,7 @@ void ScheduleDAGMILive::initRegPressure() {
 
   LLVM_DEBUG(RPTracker.dump());
 
-  // Initialize the live ins and live outs.
+  // Initialize the live ins and live outs. TopRPTracker.LiveRegs is set to RPTracker.P.LiveInRegs, BotRPTracker.LiveRegs is set to RPTracker.P.LiveOutRegs.
   TopRPTracker.addLiveRegs(RPTracker.getPressure().LiveInRegs);
   BotRPTracker.addLiveRegs(RPTracker.getPressure().LiveOutRegs);
 
@@ -1357,7 +1357,7 @@ updateScheduledPressure(const SUnit *SU,
 }
 
 /// Update the PressureDiff array for liveness after scheduling this
-/// instruction.
+/// instruction. LiveUses is RegUnits that are made live by the current instruction's uses. This includes registers that are both defined and used by the instruction.
 void ScheduleDAGMILive::updatePressureDiffs(
     ArrayRef<RegisterMaskPair> LiveUses) {
   for (const RegisterMaskPair &P : LiveUses) {
@@ -1401,7 +1401,7 @@ void ScheduleDAGMILive::updatePressureDiffs(
         VNI = LI.getVNInfoBefore(LIS->getMBBEndIdx(BB));
       else {
         LiveQueryResult LRQ = LI.Query(LIS->getInstructionIndex(*I));
-        VNI = LRQ.valueIn();
+        VNI = LRQ.valueIn(); // the value that will be read by the instruction's use operands
       }
       // RegisterPressureTracker guarantees that readsReg is true for LiveUses.
       assert(VNI && "No live value at use.");
@@ -1480,7 +1480,7 @@ void ScheduleDAGMILive::schedule() {
   // Initialize ready queues now that the DAG and priority data are finalized.
   initQueues(TopRoots, BotRoots);
 
-  bool IsTopNode = false;
+  bool IsTopNode = false; // IsTopNode is true if the node picked this time is from the top boundary
   while (true) {
     LLVM_DEBUG(dbgs() << "** ScheduleDAGMILive::schedule picking next node\n");
     SUnit *SU = SchedImpl->pickNode(IsTopNode);
@@ -1490,7 +1490,7 @@ void ScheduleDAGMILive::schedule() {
     if (!checkSchedLimit())
       break;
 
-    scheduleMI(SU, IsTopNode);
+    scheduleMI(SU, IsTopNode); // Move an instruction and update register pressure
 
     if (DFSResult) {
       unsigned SubtreeID = DFSResult->getSubtreeID(SU);
@@ -1720,7 +1720,7 @@ void ScheduleDAGMILive::scheduleMI(SUnit *SU, bool IsTopNode) {
                      BotRPTracker.getRegSetPressureAtPos(), TRI););
 
       updateScheduledPressure(SU, BotRPTracker.getPressure().MaxSetPressure);
-      updatePressureDiffs(LiveUses);
+      updatePressureDiffs(LiveUses); // update pressure diff only bottom-up schedule
     }
   }
 }
@@ -2340,7 +2340,7 @@ unsigned SchedBoundary::getLatencyStallCycles(SUnit *SU) {
   if (!SU->isUnbuffered)
     return 0;
 
-  unsigned ReadyCycle = (isTop() ? SU->TopReadyCycle : SU->BotReadyCycle);
+  unsigned ReadyCycle = (isTop() ? SU->TopReadyCycle : SU->BotReadyCycle); // computed from EntrySUnit/ExitSUnit
   if (ReadyCycle > CurrCycle)
     return ReadyCycle - CurrCycle;
   return 0;
@@ -2550,7 +2550,7 @@ getOtherResourceCount(unsigned &OtherCritIdx) {
   }
   return OtherCritCount;
 }
-
+// 1) release SU from pending queue to available queue; 2) move SU from DAG to available queue; 3) move SU from DAG to pending queue
 void SchedBoundary::releaseNode(SUnit *SU, unsigned ReadyCycle, bool InPQueue,
                                 unsigned Idx) {
   assert(SU->getInstr() && "Scheduled SUnit must have instr");
@@ -3444,7 +3444,7 @@ unsigned getWeakLeft(const SUnit *SU, bool isTop) {
 /// copies which can be prescheduled. The rest (e.g. x86 MUL) could be bundled
 /// with the operation that produces or consumes the physreg. We'll do this when
 /// regalloc has support for parallel copies.
-int biasPhysReg(const SUnit *SU, bool isTop) {
+int biasPhysReg(const SUnit *SU, bool isTop) { // look at the test in e833e1cd6eeb722edbb5c5f316fbca16abd384c9 to understand the role of this function
   const MachineInstr *MI = SU->getInstr();
 
   if (MI->isCopy()) {
